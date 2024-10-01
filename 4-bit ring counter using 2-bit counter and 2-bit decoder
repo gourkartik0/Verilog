@@ -1,0 +1,113 @@
+`timescale 1ns / 1ps
+
+RTL FOR TWO BIT COUNTER
+
+module counter_2bit ( 
+                  input clk, 
+                  input reset, 
+                  output reg [1:0] count 
+                  ); 
+      always @(posedge clk or posedge reset) begin 
+       if (reset) begin 
+       count <= 2'b00; 
+      end else begin
+       if(count==2'b11)begin
+          count<= 2'b00;
+       end else begin 
+       count <= count + 1; 
+       end
+      end 
+    end 
+  endmodule 
+
+ RTL FOR TWO BIT DECODER
+  
+  module decoder_2bit ( 
+           input [1:0] count, 
+           output reg [3:0] decode 
+           ); 
+           
+          always @(*) begin 
+          decode = 4'b0000;  
+          case (count) 
+          2'b00: decode[0] = 1;  
+          2'b01: decode[1] = 1;  
+          2'b10: decode[2] = 1; 
+          2'b11: decode[3] = 1;  
+        endcase 
+     end 
+ endmodule
+
+ TOP MODULE FOR RING COUNTER
+  
+  module ring_counter ( 
+                  input clk, 
+                  input reset, 
+                  output reg [3:0] ring_out 
+                  ); 
+        wire [1:0] count; 
+        wire [3:0] decode; 
+        counter_2bit u_counter ( 
+                         .clk(clk), 
+                         .reset(reset), 
+                         .count(count) 
+                         ); 
+       decoder_2bit u_decoder ( 
+                        .count(count), 
+                        .decode(decode) 
+                        );
+                         
+      always @(posedge clk or posedge reset) begin 
+         if (reset) begin
+         ring_out <= 4'b0001;  
+         end else begin 
+         ring_out <= {ring_out[2:0], ring_out[3]}; 
+      end 
+   end 
+     always @(decode) begin 
+      case (decode) 
+       4'b0001: ring_out <= 4'b0001;  
+       4'b0010: ring_out <= 4'b0010;  
+       4'b0100: ring_out <= 4'b0100;  
+       4'b1000: ring_out <= 4'b1000;  
+       default: ring_out <= ring_out;  
+     endcase 
+   end 
+ endmodule 
+
+
+
+ TEST BENCH FOR RING COUNTER
+
+
+module ring_counter_tb;
+ reg clk; 
+ reg reset; 
+ wire [3:0] ring_out;
+ 
+ ring_counter uut ( 
+   .clk(clk), 
+   .reset(reset), 
+   .ring_out(ring_out) 
+  ); 
+  
+  initial begin 
+    clk=0;
+    forever #5 clk = ~clk;  
+  end 
+   initial begin 
+       reset = 1; 
+       #10;  
+       reset = 0; 
+       repeat (12) @(posedge clk); 
+       reset = 1;  
+       #10; 
+       reset = 0;  
+       repeat (8) @(posedge clk);
+   
+       $finish; 
+  end 
+    initial begin 
+      $monitor("Time: %0t, Ring Out: %b", $time, ring_out); 
+  end 
+endmodule
