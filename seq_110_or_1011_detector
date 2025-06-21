@@ -1,0 +1,171 @@
+//DUT
+
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 21.06.2025 15:42:45
+// Design Name: 
+// Module Name: seq_110_or_1011_detector
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
+module seq_110_or_1011_detector(
+    input clk,
+    input rst,
+    input in,
+    output reg z
+    );
+    localparam S0 = 3'd0;
+    localparam S1 = 3'd1;
+    localparam S2 = 3'd2;
+    localparam S3 = 3'd3;
+    localparam S4 = 3'd4;
+
+    reg [2:0] current_state, next_state;
+    
+    always@(posedge clk or posedge rst)begin
+    if(rst)
+        current_state<=S0;
+     else
+        current_state<=next_state;
+    end
+    
+    ///////NEXT STATE AND OUTPUT LOGIC
+    
+    always@(*)begin
+        next_state=current_state;
+        z=0;   
+        
+        case(current_state)
+        S0:begin
+        if(in) next_state=S1;  // got 1
+        else   next_state=S0;     
+        end
+        S1:begin
+            if(in) next_state=S2;  //got 11
+            else next_state=S3;    //got 10
+        end
+        
+        S2:begin
+        if(!in)begin next_state=S3;  // got 110
+                z=1;
+        end
+        else next_state=S2;          // got 111 and 11 will we reused
+        end
+        S3:begin
+            if(in)next_state=S4; // got 101
+            else next_state=S0;  // got 100
+        end
+        S4:begin
+        if(in)begin next_state=S2;    // got 1011  and 11 will be reused
+            z=1;        
+        end
+        else
+            next_state=S3;             // got 1010 and 10 will be reused
+        end
+        default: next_state=S0;
+        endcase
+    end
+    
+endmodule
+
+
+/////TestBench
+
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 21.06.2025 16:11:05
+// Design Name: 
+// Module Name: tb_seq_110_or_1011_detector
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
+module tb_seq_110_or_1011_detector();
+
+       reg clk;
+    reg rst;
+    reg in;
+
+    // Output
+    wire z;
+
+    // Instantiate DUT
+    seq_110_or_1011_detector dut (
+        .clk(clk),
+        .rst(rst),
+        .in(in),
+        .z(z)
+    );
+
+    // Clock generation: 10ns period
+    initial begin
+        clk = 0;
+        forever #5 clk = ~clk;
+    end
+
+    // Apply stimulus manually (bitstream = 110110010110)
+    initial begin
+        // VCD dump
+        $dumpfile("seq_detect.vcd");
+        $dumpvars(0, tb_seq_110_or_1011_detector);
+
+        // Initialize
+        rst = 1; in = 0;
+        #12;
+        rst = 0;
+
+        // Apply bits at each falling clock edge
+        @(posedge clk); in = 1;   // bit 11
+        @(posedge clk); in = 1;   // bit 10
+        @(posedge clk); in = 0;   // bit 9
+        @(posedge clk); in = 1;   // bit 8
+        @(posedge clk); in = 1;   // bit 7
+        @(posedge clk); in = 0;   // bit 6
+        @(posedge clk); in = 0;   // bit 5
+        @(posedge clk); in = 1;   // bit 4
+        @(posedge clk); in = 0;   // bit 3
+        @(posedge clk); in = 1;   // bit 2
+        @(posedge clk); in = 1;   // bit 1
+        @(posedge clk); in = 0;   // bit 0
+
+        // Hold for a few more cycles
+        repeat (5) @(posedge clk);
+        $finish;
+    end
+
+    // Optional Monitor
+    initial begin
+        $display("Time\tclk\tin\tz");
+        $monitor("%4t\t%b\t%b\t%b", $time, clk, in, z);
+    end
+
+
+endmodule
+
